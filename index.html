@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRASS Tool - Radiographic Assessment</title>
+    <style>
+        /* Dark Theme Variables */
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --border-color: #333333;
+            --accent-blue: #4facfe;
+            --success-green: #00e676;
+            --danger-red: #ff1744;
+            --btn-disabled: #444444;
+        }
+
+        body { 
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container { 
+            background-color: var(--card-bg); 
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 16px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+            min-height: 550px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Floating Live Score */
+        .live-score {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #2a2a2a;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--accent-blue);
+            display: none; 
+            z-index: 10;
+        }
+
+        /* Screen Sections */
+        .screen {
+            padding: 40px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            display: none; 
+        }
+        .screen.active {
+            display: flex;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 { text-align: center; color: #ffffff; margin-bottom: 10px; }
+        h2 { color: #ffffff; margin-bottom: 25px; font-size: 22px; text-align: center; }
+        p.subtitle { text-align: center; color: var(--text-muted); margin-bottom: 40px; line-height: 1.6; }
+
+        /* Analog Scale Grid */
+        .analog-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .analog-option {
+            background: #2a2a2a;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            position: relative;
+            overflow: hidden;
+            min-height: 140px;
+        }
+
+        .analog-option:hover {
+            border-color: #555;
+            background: #333;
+        }
+
+        .analog-option.selected {
+            border-color: var(--accent-blue);
+            background: rgba(79, 172, 254, 0.1);
+            box-shadow: 0 0 15px rgba(79, 172, 254, 0.3);
+        }
+
+        /* Text Container for Descriptions */
+        .text-container {
+            width: 100%;
+            flex-grow: 1;
+            background: #121212;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px 10px;
+            box-sizing: border-box;
+            text-align: center;
+            font-size: 14px;
+            color: #d0d0d0;
+            border: 1px solid #333;
+            line-height: 1.4;
+        }
+
+        .option-label {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+
+        /* Navigation Buttons */
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn {
+            padding: 12px 24px; border: none; border-radius: 8px;
+            font-size: 16px; font-weight: bold; cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:active { transform: scale(0.95); }
+
+        .btn-outline { background: transparent; border: 2px solid var(--border-color); color: var(--text-main); }
+        .btn-outline:hover { background: #2a2a2a; }
+
+        .btn-primary { background: var(--accent-blue); color: #121212; }
+        .btn-primary:hover { background: #3da0f0; }
+        .btn-primary:disabled { background: var(--btn-disabled); color: #888; cursor: not-allowed; transform: none; }
+
+        /* Results Screen */
+        .results-dashboard { text-align: center; }
+        .final-score-circle {
+            width: 200px; height: 200px; border-radius: 50%;
+            border: 10px solid var(--accent-blue); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; margin: 0 auto 30px auto; background: #252525;
+        }
+        .percentage { font-size: 54px; font-weight: bold; color: #fff; line-height: 1;}
+        .percentage-label { font-size: 14px; color: var(--text-muted); margin-top: 5px;}
+        
+        .result-inference { padding: 20px; border-radius: 12px; background: #2a2a2a; margin-bottom: 30px; }
+
+        /* Progress Bar */
+        .progress-bar-container {
+            width: 100%; height: 6px; background: #333; position: absolute; bottom: 0; left: 0; display: none;
+        }
+        .progress-bar-fill { height: 100%; background: var(--accent-blue); width: 0%; transition: width 0.3s ease; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="live-score" id="liveScoreBadge">Acceptable Traits: 0%</div>
+    
+    <div class="progress-bar-container" id="progressBar">
+        <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+
+    <div class="screen active" id="screen-start">
+        <h1>BRASS Tool</h1>
+        <h2>Band and Loop Radiographic Assessment Scoring System</h2>
+        <p class="subtitle">Evaluate the clinical prognosis of the conventional band and loop space maintainer.<br>Compare the 10 radiographic items against the textual analog scale (1 to 5).</p>
+        <div style="text-align: center;">
+            <button class="btn btn-primary" style="padding: 15px 40px; font-size: 18px;" onclick="startAssessment()">Start Assessment</button>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-question">
+        <div style="color: var(--accent-blue); font-weight: bold; margin-bottom: 10px;" id="questionNumber">Item 1 of 10</div>
+        <h2 id="questionText">Upper margin of the band</h2>
+        
+        <div class="analog-grid" id="analogOptions">
+            </div>
+
+        <div class="navigation">
+            <button class="btn btn-outline" id="btnPrev" onclick="prevStep()">Previous</button>
+            <button class="btn btn-primary" id="btnNext" onclick="nextStep()" disabled>Next</button>
+        </div>
+    </div>
+
+    <div class="screen" id="screen-result">
+        <h1>Assessment Complete</h1>
+        <div class="results-dashboard">
+            <div class="final-score-circle" id="finalScoreCircle">
+                <div class="percentage" id="finalPercentage">0%</div>
+                <div class="percentage-label">Acceptable Traits<br>(Score ≥ 3)</div>
+            </div>
+            <div class="result-inference">
+                <p style="font-size: 16px; color: var(--text-main); margin: 0;">
+                    Please refer to Figure 1 of the original BRASS publication to determine the specific clinical inference for this percentage score.
+                </p>
+            </div>
+            <button class="btn btn-outline" onclick="location.reload()">Start New Assessment</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const items = [
+        "Upper margin of the band",
+        "Lower margin of the band",
+        "Proximal contact of band",
+        "Proximal contour of band",
+        "Solder extent",
+        "Solder consistency",
+        "Loop following gingival contour",
+        "Loop contact point",
+        "Adjacent tooth condition",
+        "Root resorption of tooth on which loop rests"
+    ];
+
+    // Extracted directly from Figure 1
+    const descriptions = [
+        // Item 1: Upper margin of the band
+        ["Below the contact point", "Cusps not visible", "Cusps partially visible", "Proximal tilting of the band", "2mm below the occlusal cusp"],
+        
+        // Item 2: Lower margin of the band
+        ["Uneven contour", "Inverted arc", "Dipping below the gingiva covering the entire pulp chamber", "Straight contour", "Follows the gingival contour"],
+        
+        // Item 3: Proximal contact of band
+        ["No contact or edentulous space", "Overlapping", "Cervical 1/3rd", "Middle 1/3rd", "Occlusal 3rd or established contact"],
+        
+        // Item 4: Proximal contour of band
+        ["Uneven contour", "Open margin bilaterally", "Open margin unilaterally", "Follows the proximal contour of the tooth unilaterally", "Follows the proximal contour of the tooth bilaterally"],
+        
+        // Item 5: Solder extent
+        ["A portion of wire loop is visible", "Either the gingiva or the occlusal margin of wire is free of solder", "Solder extended to occlusal and gingival third", "Solder extends either to occlusal or gingival third", "Encircles wire. Occlusal and gingival third free of solder"],
+        
+        // Item 6: Solder consistency
+        ["Uneven consistency with multiple voids", "Uneven consistency with single void", "Even consistency with multiple voids", "Even consistency with single void", "Uniform consistency"],
+        
+        // Item 7: Gingival contour (Loop following gingival contour)
+        ["At the level or above the occlusal plane", "Straight", "Straight and surround", "Curve", "Curve and surround"],
+        
+        // Item 8: Contact (Loop contact point)
+        ["No contact", "Only one arm in contact", "At the contact point", "Above the contact point", "1mm Below the contact point"],
+        
+        // Item 9: Adjacent tooth
+        ["Below the crest of alveolar bone", "Occlusal table is at the level of lower border of the band", "Occlusal table is at the level of middle of the band", "Occlusal table is at the level of lower border of the band", "Completely erupted"],
+        
+        // Item 10: Root resorption of the tooth on which loop rests
+        ["Less than 1/3rd root present in single-rooted tooth", "Less than 1/3rd root present in multi-rooted tooth", "1/3rd - 2/3rd root present in single-rooted tooth", "1/3rd - 2/3rd root present in multi-rooted tooth", "2/3rd or more of the root intact"]
+    ];
+
+    let currentStep = 0; 
+    let scores = new Array(10).fill(null); 
+
+    function startAssessment() {
+        currentStep = 1;
+        document.getElementById('screen-start').classList.remove('active');
+        document.getElementById('screen-question').classList.add('active');
+        document.getElementById('liveScoreBadge').style.display = 'block';
+        document.getElementById('progressBar').style.display = 'block';
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const itemIndex = currentStep - 1;
+        
+        document.getElementById('questionNumber').innerText = `Item ${currentStep} of 10`;
+        document.getElementById('questionText').innerText = items[itemIndex];
+        document.getElementById('progressFill').style.width = `${(currentStep / 10) * 100}%`;
+
+        const optionsContainer = document.getElementById('analogOptions');
+        optionsContainer.innerHTML = ''; 
+
+        for (let i = 1; i <= 5; i++) {
+            const isSelected = scores[itemIndex] === i ? 'selected' : '';
+            const descriptionText = descriptions[itemIndex][i - 1]; 
+            
+            const optionHTML = `
+                <div class="analog-option ${isSelected}" onclick="selectOption(${i})">
+                    <div class="text-container">
+                        ${descriptionText}
+                    </div>
+                    <div class="option-label">${i}</div>
+                </div>
+            `;
+            optionsContainer.innerHTML += optionHTML;
+        }
+
+        document.getElementById('btnPrev').style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+        
+        const nextBtn = document.getElementById('btnNext');
+        if (currentStep === 10) {
+            nextBtn.innerText = "Finish & View Results";
+        } else {
+            nextBtn.innerText = "Next";
+        }
+        
+        nextBtn.disabled = scores[itemIndex] === null;
+        updateLiveScore();
+    }
+
+    function selectOption(scoreValue) {
+        const itemIndex = currentStep - 1;
+        scores[itemIndex] = scoreValue;
+        renderQuestion(); 
+    }
+
+    function nextStep() {
+        if (currentStep < 10) {
+            currentStep++;
+            renderQuestion();
+        } else {
+            showResults();
+        }
+    }
+
+    function prevStep() {
+        if (currentStep > 1) {
+            currentStep--;
+            renderQuestion();
+        }
+    }
+
+    function calculateAcceptablePercentage() {
+        let acceptableCount = 0;
+        scores.forEach(score => {
+            if (score !== null && score >= 3) {
+                acceptableCount++;
+            }
+        });
+        return (acceptableCount / 10) * 100;
+    }
+
+    function updateLiveScore() {
+        const percentage = calculateAcceptablePercentage();
+        document.getElementById('liveScoreBadge').innerText = `Acceptable Traits: ${percentage}%`;
+    }
+
+    function showResults() {
+        document.getElementById('screen-question').classList.remove('active');
+        document.getElementById('screen-result').classList.add('active');
+        document.getElementById('liveScoreBadge').style.display = 'none';
+        document.getElementById('progressBar').style.display = 'none';
+
+        const finalPercentage = calculateAcceptablePercentage();
+        document.getElementById('finalPercentage').innerText = `${finalPercentage}%`;
+        
+        const circle = document.getElementById('finalScoreCircle');
+        if (finalPercentage >= 80) {
+            circle.style.borderColor = "var(--success-green)";
+        } else if (finalPercentage >= 50) {
+            circle.style.borderColor = "var(--accent-blue)";
+        } else {
+            circle.style.borderColor = "var(--danger-red)";
+        }
+    }
+</script>
+
+</body>
+</html>
